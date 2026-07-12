@@ -26,7 +26,14 @@ from src import data as data_mod  # noqa: E402
 from src import model as model_mod  # noqa: E402
 
 
-def _callbacks():
+def _callbacks(best_threshold: float | None = None):
+    """Callbacks de entrenamiento.
+
+    `best_threshold` fija el umbral inicial del ModelCheckpoint. En la fase 2
+    (fine-tuning) se pasa el mejor val_accuracy de la fase 1, de modo que el
+    checkpoint SOLO sobrescriba el modelo guardado si el fine-tuning realmente
+    lo mejora. Así nunca se pierde el mejor modelo de la fase anterior.
+    """
     return [
         tf.keras.callbacks.EarlyStopping(
             monitor="val_accuracy", patience=8, restore_best_weights=True, verbose=1
@@ -36,7 +43,8 @@ def _callbacks():
         ),
         tf.keras.callbacks.ModelCheckpoint(
             str(config.MODEL_PATH), monitor="val_accuracy",
-            save_best_only=True, verbose=0
+            save_best_only=True, verbose=0,
+            initial_value_threshold=best_threshold,
         ),
     ]
 
@@ -102,6 +110,7 @@ def main():
         callbacks=_callbacks(), verbose=2,
     )
     histories.append(h1)
+    best_val = max(h1.history["val_accuracy"])
 
     if config.FINE_TUNE and not args.no_fine_tune:
         print("\n=== FASE 2: fine-tuning de las capas superiores del backbone ===")
@@ -111,19 +120,21 @@ def main():
             loss="categorical_crossentropy",
             metrics=["accuracy"],
         )
+        # El checkpoint solo sobrescribirá si supera el mejor val de la fase 1
         h2 = model.fit(
             train_ds, validation_data=val_ds,
             epochs=args.ft_epochs, class_weight=class_weights,
-            callbacks=_callbacks(), verbose=2,
+            callbacks=_callbacks(best_threshold=best_val), verbose=2,
         )
         histories.append(h2)
 
-    # Asegura que en disco quede el mejor modelo (restaurado por EarlyStopping)
-    model.save(config.MODEL_PATH)
-    print(f"\nModelo guardado en {config.MODEL_PATH}")
+    # El mejor modelo (de cualquiera de las dos fases) ya está en disco gracias
+    # al ModelCheckpoint. Lo recargamos para evaluar EXACTAMENTE ese modelo.
+    print(f"\nMejor modelo guardado en {config.MODEL_PATH}")
+    best_model = tf.keras.models.load_model(config.MODEL_PATH)
 
     print("\n=== Evaluación en el conjunto de TEST (imágenes no vistas) ===")
-    loss, acc = model.evaluate(test_ds, verbose=0)
+    loss, acc = best_model.evaluate(test_ds, verbose=0)
     print(f"Test accuracy: {acc:.4f} | Test loss: {loss:.4f}")
 
     _plot_history(histories)
