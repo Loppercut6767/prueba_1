@@ -6,11 +6,12 @@ __pycache__/
 venv/
 env/
 
-# Modelos entrenados (se regeneran con src/train.py) salvo el de ejemplo
-models/*.keras
-
-# Salidas generadas
+# Salidas generadas (se regeneran con evaluate.py / predict.py)
 outputs/*.png
+outputs/*.txt
+
+# Nota: se versiona un modelo entrenado de ejemplo (models/cacao_mobilenetv2.keras)
+# para que la cámara funcione sin reentrenar. Reentrénalo con `python -m src.train`.
 
 # SO / editores
 .DS_Store

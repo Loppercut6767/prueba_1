@@ -97,6 +97,33 @@ Controles: pulsa **`q`** para salir. Requiere un entorno con cámara/pantalla
 (no funciona en un servidor headless). Para colocar un grano en un punto fijo,
 usa `--roi` y sitúa el grano dentro del recuadro verde.
 
+## Resultados de referencia
+
+Entrenando con la configuración por defecto sobre el dataset incluido
+(429 train / 92 val / 93 test), el modelo alcanza en el conjunto de **test**
+(imágenes aleatorias no vistas):
+
+```
+              precision    recall  f1-score   support
+      entero      0.882     0.938     0.909        16
+  fermentado      0.550     0.688     0.611        16
+    fraccion      1.000     0.867     0.929        15
+      mohoso      0.750     0.750     0.750        16
+     partido      0.750     0.600     0.667        15
+   pizarroso      0.667     0.667     0.667        15
+    accuracy                          0.753        93
+```
+
+**~75 % de accuracy** en 6 clases con solo 614 imágenes de 80–190 px. Las mayores
+confusiones son `fermentado ↔ pizarroso` (ambos granos enteros que se distinguen
+por el color de fermentación) — algo esperable y mejorable con más datos y mayor
+resolución. El repo incluye un modelo ya entrenado en `models/` para poder probar
+la cámara sin reentrenar.
+
+> Los números pueden variar ligeramente entre ejecuciones. Con `--random`, el
+> script de predicción muestrea imágenes de **todo** el dataset (train incluido),
+> por lo que su porcentaje no equivale al accuracy de test.
+
 ## Cómo funciona
 
 - **Arquitectura**: *transfer learning* con **MobileNetV2** (pesos de ImageNet).
