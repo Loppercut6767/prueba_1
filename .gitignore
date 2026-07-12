@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Modelos entrenados (se regeneran con src/train.py) salvo el de ejemplo
+models/*.keras
+
+# Salidas generadas
+outputs/*.png
+
+# SO / editores
+.DS_Store
+.idea/
+.vscode/
