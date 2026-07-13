@@ -29,15 +29,17 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 import config  # noqa: E402
 
 
-def load_model_and_classes():
+def load_model_and_classes(backbone=None):
     import tensorflow as tf
 
-    if not config.MODEL_PATH.exists():
+    path = config.resolve_model_path(backbone)
+    if not path.exists():
         raise FileNotFoundError(
-            f"No existe el modelo {config.MODEL_PATH}. Entrena primero con "
-            "'python -m src.train'."
+            f"No existe el modelo {path}. Entrena primero con 'python -m src.train' "
+            "o compara los modelos con 'python -m src.compare'."
         )
-    model = tf.keras.models.load_model(config.MODEL_PATH)
+    print(f"Cámara usando el modelo: {path.name}")
+    model = tf.keras.models.load_model(path)
     class_names = json.loads(config.CLASS_NAMES_PATH.read_text())
     return model, class_names
 
@@ -64,9 +66,11 @@ def main():
                         help="Analizar solo un recuadro central de la imagen")
     parser.add_argument("--conf", type=float, default=0.0,
                         help="Umbral mínimo de confianza para mostrar etiqueta")
+    parser.add_argument("--backbone", choices=config.AVAILABLE_BACKBONES, default=None,
+                        help="Forzar un modelo (por defecto: el ganador de la comparación)")
     args = parser.parse_args()
 
-    model, class_names = load_model_and_classes()
+    model, class_names = load_model_and_classes(args.backbone)
 
     source = int(args.source) if args.source.isdigit() else args.source
     cap = cv2.VideoCapture(source)

@@ -1,15 +1,18 @@
 """
-Definición del modelo: transfer learning con MobileNetV2.
+Definición de los modelos: transfer learning con DOS arquitecturas comparables.
 
-Se eligió MobileNetV2 porque es ligero y rápido en CPU, lo que lo hace ideal
-para el objetivo final: correr en tiempo real sobre el vídeo de una cámara.
+  - "mobilenetv2":   ligero y muy rápido en CPU (ideal para cámara en tiempo real)
+  - "efficientnetb0": algo más pesado, suele dar mayor exactitud
 
-El modelo incluye DENTRO de sí mismo:
-  - aumento de datos (solo activo en entrenamiento)
-  - el reescalado a [-1, 1] que espera MobileNetV2
+Ambos comparten la misma "cabeza" (GlobalAveragePooling + Dropout + Dense) y el
+mismo bloque de aumento de datos, para que la comparación sea justa: lo único que
+cambia es el backbone.
 
-Así, tanto el script de predicción como el de la cámara solo tienen que pasar
-la imagen redimensionada en rango 0-255, sin recordar pasos de preprocesado.
+Cada modelo incluye DENTRO de sí mismo el aumento de datos (solo en entrenamiento)
+y su preprocesado específico, de modo que la inferencia (predict/cámara) siempre
+pasa la imagen redimensionada en rango 0-255, sin recordar detalles por modelo:
+  - MobileNetV2 espera [-1, 1]  -> se añade una capa Rescaling.
+  - EfficientNetB0 ya normaliza internamente (include_preprocessing=True) -> nada.
 """
 from __future__ import annotations
 
@@ -36,54 +39,75 @@ def _augmentation_block():
     )
 
 
-def build_model(num_classes: int) -> tf.keras.Model:
-    inputs = layers.Input(shape=(config.IMG_SIZE, config.IMG_SIZE, 3), name="imagen")
+def _build_backbone(backbone: str, input_shape):
+    """Devuelve (backbone, capa_de_preprocesado_o_None) según la arquitectura."""
+    if backbone == "mobilenetv2":
+        base = tf.keras.applications.MobileNetV2(
+            input_shape=input_shape, include_top=False, weights="imagenet"
+        )
+        preprocess = layers.Rescaling(1.0 / 127.5, offset=-1.0, name="preproc")
+        return base, preprocess
+
+    if backbone == "efficientnetb0":
+        # include_preprocessing=True (por defecto): el modelo normaliza el rango
+        # 0-255 internamente, así que no hace falta capa de preprocesado extra.
+        base = tf.keras.applications.EfficientNetB0(
+            input_shape=input_shape, include_top=False, weights="imagenet"
+        )
+        return base, None
+
+    raise ValueError(
+        f"Backbone desconocido: {backbone}. Opciones: {config.AVAILABLE_BACKBONES}"
+    )
+
+
+def build_model(num_classes: int, backbone: str = config.DEFAULT_BACKBONE) -> tf.keras.Model:
+    input_shape = (config.IMG_SIZE, config.IMG_SIZE, 3)
+    inputs = layers.Input(shape=input_shape, name="imagen")
 
     x = _augmentation_block()(inputs)
-    # MobileNetV2 espera valores en [-1, 1]
-    x = layers.Rescaling(1.0 / 127.5, offset=-1.0, name="reescalado")(x)
 
-    backbone = tf.keras.applications.MobileNetV2(
-        input_shape=(config.IMG_SIZE, config.IMG_SIZE, 3),
-        include_top=False,
-        weights="imagenet",
-    )
-    backbone.trainable = False  # fase 1: congelado
+    base, preprocess = _build_backbone(backbone, input_shape)
+    if preprocess is not None:
+        x = preprocess(x)
+    base.trainable = False  # fase 1: congelado
 
-    x = backbone(x, training=False)
+    x = base(x, training=False)
     x = layers.GlobalAveragePooling2D(name="gap")(x)
     x = layers.Dropout(0.3, name="dropout")(x)
     outputs = layers.Dense(num_classes, activation="softmax", name="salida")(x)
 
-    model = tf.keras.Model(inputs, outputs, name="cacao_morfologia")
-    return model
+    return tf.keras.Model(inputs, outputs, name=f"cacao_{backbone}")
 
 
 def get_backbone(model: tf.keras.Model) -> tf.keras.Model:
-    """Devuelve la sub-red MobileNetV2 dentro del modelo (para fine-tuning).
+    """Devuelve la sub-red backbone dentro del modelo (para fine-tuning).
 
-    Se localiza por tipo (submodelo funcional) y por prefijo de nombre, así el
-    código sigue funcionando aunque Keras asigne un nombre autogenerado como
-    'mobilenetv2_1.00_128'.
+    Es el submodelo anidado que NO es el bloque de aumento de datos. Se excluye
+    'aumento_datos' explícitamente (y los Sequential) porque un Sequential
+    también es subclase de tf.keras.Model y, si no, se devolvería por error.
     """
     for layer in model.layers:
-        if isinstance(layer, tf.keras.Model) and "mobilenet" in layer.name.lower():
+        if (isinstance(layer, tf.keras.Model)
+                and not isinstance(layer, tf.keras.Sequential)
+                and layer.name != "aumento_datos"):
             return layer
-    raise ValueError("No se encontró el backbone MobileNetV2 en el modelo.")
+    raise ValueError("No se encontró el backbone (submodelo) en el modelo.")
 
 
-def enable_fine_tuning(model: tf.keras.Model, fine_tune_at: int = config.FINE_TUNE_AT):
+def enable_fine_tuning(model: tf.keras.Model, backbone: str = config.DEFAULT_BACKBONE):
     """Descongela las capas superiores del backbone para el fine-tuning.
 
     IMPORTANTE: se mantienen CONGELADAS las capas BatchNormalization. Si se
     descongelan, sus estadísticas móviles (media/varianza) se recalculan con un
     batch pequeño y muy aumentado, lo que desestabiliza el modelo y hace que el
     fine-tuning empeore el resultado en vez de mejorarlo. Congelarlas es la
-    práctica recomendada para transfer learning con MobileNetV2.
+    práctica recomendada para transfer learning.
     """
-    backbone = get_backbone(model)
-    backbone.trainable = True
-    for i, layer in enumerate(backbone.layers):
+    base = get_backbone(model)
+    base.trainable = True
+    fine_tune_at = config.FINE_TUNE_AT.get(backbone, 100)
+    for i, layer in enumerate(base.layers):
         if i < fine_tune_at or isinstance(layer, tf.keras.layers.BatchNormalization):
             layer.trainable = False
     return model

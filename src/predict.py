@@ -30,13 +30,15 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 import config  # noqa: E402
 
 
-def load_model_and_classes():
-    if not config.MODEL_PATH.exists():
+def load_model_and_classes(backbone: str | None = None):
+    path = config.resolve_model_path(backbone)
+    if not path.exists():
         raise FileNotFoundError(
-            f"No existe el modelo {config.MODEL_PATH}. Entrena primero con "
-            "'python -m src.train'."
+            f"No existe el modelo {path}. Entrena primero con 'python -m src.train' "
+            "o compara los modelos con 'python -m src.compare'."
         )
-    model = tf.keras.models.load_model(config.MODEL_PATH)
+    print(f"Usando modelo: {path.name}")
+    model = tf.keras.models.load_model(path)
     class_names = json.loads(config.CLASS_NAMES_PATH.read_text())
     return model, class_names
 
@@ -110,9 +112,11 @@ def main():
     group.add_argument("--image", type=str, help="Ruta a una imagen")
     group.add_argument("--dir", type=str, help="Carpeta con imágenes")
     group.add_argument("--random", type=int, help="N imágenes aleatorias del dataset")
+    parser.add_argument("--backbone", choices=config.AVAILABLE_BACKBONES, default=None,
+                        help="Forzar un modelo concreto (por defecto: el ganador de la comparación)")
     args = parser.parse_args()
 
-    model, class_names = load_model_and_classes()
+    model, class_names = load_model_and_classes(args.backbone)
 
     if args.image:
         label, desc, conf, probs = predict_one(model, class_names, args.image)

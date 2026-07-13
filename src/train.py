@@ -2,14 +2,15 @@
 Entrenamiento del clasificador de morfología de granos de cacao.
 
 Uso:
-    python -m src.train                 # entrenamiento completo (cabeza + fine-tuning)
-    python -m src.train --no-fine-tune  # solo la cabeza (más rápido)
-    python -m src.train --epochs 10     # menos épocas de la fase 1
+    python -m src.train                              # MobileNetV2 (por defecto)
+    python -m src.train --backbone efficientnetb0    # el otro modelo
+    python -m src.train --no-fine-tune               # solo la cabeza (más rápido)
+    python -m src.train --epochs 10                  # menos épocas de la fase 1
 
 Al terminar guarda:
-    models/cacao_mobilenetv2.keras   -> modelo entrenado
-    models/class_names.json          -> orden de las clases
-    outputs/history.png              -> curvas de accuracy/loss
+    models/cacao_<backbone>.keras   -> modelo entrenado
+    models/class_names.json         -> orden de las clases
+    outputs/history_<backbone>.png  -> curvas de accuracy/loss
 """
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ from src import data as data_mod  # noqa: E402
 from src import model as model_mod  # noqa: E402
 
 
-def _callbacks(best_threshold: float | None = None):
+def _callbacks(model_path, best_threshold: float | None = None):
     """Callbacks de entrenamiento.
 
     `best_threshold` fija el umbral inicial del ModelCheckpoint. En la fase 2
@@ -42,14 +43,14 @@ def _callbacks(best_threshold: float | None = None):
             monitor="val_loss", factor=0.5, patience=4, min_lr=1e-7, verbose=1
         ),
         tf.keras.callbacks.ModelCheckpoint(
-            str(config.MODEL_PATH), monitor="val_accuracy",
+            str(model_path), monitor="val_accuracy",
             save_best_only=True, verbose=0,
             initial_value_threshold=best_threshold,
         ),
     ]
 
 
-def _plot_history(histories):
+def _plot_history(histories, backbone):
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -67,17 +68,68 @@ def _plot_history(histories):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
     ax1.plot(acc, label="train"); ax1.plot(val_acc, label="val")
-    ax1.set_title("Accuracy"); ax1.set_xlabel("época"); ax1.legend()
+    ax1.set_title(f"Accuracy ({backbone})"); ax1.set_xlabel("época"); ax1.legend()
     ax2.plot(loss, label="train"); ax2.plot(val_loss, label="val")
-    ax2.set_title("Loss"); ax2.set_xlabel("época"); ax2.legend()
+    ax2.set_title(f"Loss ({backbone})"); ax2.set_xlabel("época"); ax2.legend()
     fig.tight_layout()
-    out = config.OUTPUTS_DIR / "history.png"
+    out = config.OUTPUTS_DIR / f"history_{backbone}.png"
     fig.savefig(out, dpi=120)
     print(f"Curvas guardadas en {out}")
 
 
+def train_backbone(backbone, train_ds, val_ds, class_names,
+                   epochs=config.EPOCHS_HEAD, ft_epochs=config.EPOCHS_FINE_TUNE,
+                   do_fine_tune=True):
+    """Entrena un backbone concreto y devuelve la ruta del mejor modelo guardado.
+
+    Reutilizable por src.compare para entrenar los dos modelos con el mismo
+    reparto de datos (comparación justa).
+    """
+    num_classes = len(class_names)
+    model_path = config.model_path(backbone)
+    class_weights = data_mod.compute_class_weights(train_ds, num_classes)
+
+    model = model_mod.build_model(num_classes, backbone=backbone)
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(config.LR_HEAD),
+        loss="categorical_crossentropy",
+        metrics=["accuracy"],
+    )
+
+    histories = []
+    print(f"\n=== [{backbone}] FASE 1: cabeza (backbone congelado) ===")
+    h1 = model.fit(
+        train_ds, validation_data=val_ds,
+        epochs=epochs, class_weight=class_weights,
+        callbacks=_callbacks(model_path), verbose=2,
+    )
+    histories.append(h1)
+    best_val = max(h1.history["val_accuracy"])
+
+    if config.FINE_TUNE and do_fine_tune:
+        print(f"\n=== [{backbone}] FASE 2: fine-tuning ===")
+        model_mod.enable_fine_tuning(model, backbone=backbone)
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(config.LR_FINE_TUNE),
+            loss="categorical_crossentropy",
+            metrics=["accuracy"],
+        )
+        h2 = model.fit(
+            train_ds, validation_data=val_ds,
+            epochs=ft_epochs, class_weight=class_weights,
+            callbacks=_callbacks(model_path, best_threshold=best_val), verbose=2,
+        )
+        histories.append(h2)
+
+    _plot_history(histories, backbone)
+    print(f"[{backbone}] mejor modelo guardado en {model_path}")
+    return model_path
+
+
 def main():
     parser = argparse.ArgumentParser(description="Entrena el clasificador de cacao")
+    parser.add_argument("--backbone", choices=config.AVAILABLE_BACKBONES,
+                        default=config.DEFAULT_BACKBONE)
     parser.add_argument("--epochs", type=int, default=config.EPOCHS_HEAD)
     parser.add_argument("--ft-epochs", type=int, default=config.EPOCHS_FINE_TUNE)
     parser.add_argument("--no-fine-tune", action="store_true")
@@ -86,58 +138,20 @@ def main():
     tf.keras.utils.set_random_seed(config.SEED)
 
     train_ds, val_ds, test_ds, class_names = data_mod.load_datasets()
-    num_classes = len(class_names)
-
-    # Guarda el orden de las clases para la inferencia
-    config.CLASS_NAMES_PATH.write_text(json.dumps(class_names, ensure_ascii=False, indent=2))
-
-    class_weights = data_mod.compute_class_weights(train_ds, num_classes)
-    print("Pesos por clase:", {class_names[i]: round(w, 2) for i, w in class_weights.items()})
-
-    model = model_mod.build_model(num_classes)
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(config.LR_HEAD),
-        loss="categorical_crossentropy",
-        metrics=["accuracy"],
+    config.CLASS_NAMES_PATH.write_text(
+        json.dumps(class_names, ensure_ascii=False, indent=2)
     )
-    model.summary()
 
-    histories = []
-    print("\n=== FASE 1: entrenando la cabeza (backbone congelado) ===")
-    h1 = model.fit(
-        train_ds, validation_data=val_ds,
-        epochs=args.epochs, class_weight=class_weights,
-        callbacks=_callbacks(), verbose=2,
+    model_path = train_backbone(
+        args.backbone, train_ds, val_ds, class_names,
+        epochs=args.epochs, ft_epochs=args.ft_epochs,
+        do_fine_tune=not args.no_fine_tune,
     )
-    histories.append(h1)
-    best_val = max(h1.history["val_accuracy"])
-
-    if config.FINE_TUNE and not args.no_fine_tune:
-        print("\n=== FASE 2: fine-tuning de las capas superiores del backbone ===")
-        model_mod.enable_fine_tuning(model)
-        model.compile(
-            optimizer=tf.keras.optimizers.Adam(config.LR_FINE_TUNE),
-            loss="categorical_crossentropy",
-            metrics=["accuracy"],
-        )
-        # El checkpoint solo sobrescribirá si supera el mejor val de la fase 1
-        h2 = model.fit(
-            train_ds, validation_data=val_ds,
-            epochs=args.ft_epochs, class_weight=class_weights,
-            callbacks=_callbacks(best_threshold=best_val), verbose=2,
-        )
-        histories.append(h2)
-
-    # El mejor modelo (de cualquiera de las dos fases) ya está en disco gracias
-    # al ModelCheckpoint. Lo recargamos para evaluar EXACTAMENTE ese modelo.
-    print(f"\nMejor modelo guardado en {config.MODEL_PATH}")
-    best_model = tf.keras.models.load_model(config.MODEL_PATH)
 
     print("\n=== Evaluación en el conjunto de TEST (imágenes no vistas) ===")
+    best_model = tf.keras.models.load_model(model_path)
     loss, acc = best_model.evaluate(test_ds, verbose=0)
-    print(f"Test accuracy: {acc:.4f} | Test loss: {loss:.4f}")
-
-    _plot_history(histories)
+    print(f"[{args.backbone}] Test accuracy: {acc:.4f} | Test loss: {loss:.4f}")
 
 
 if __name__ == "__main__":

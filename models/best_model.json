@@ -1,0 +1,11 @@
+{
+  "backbone": "efficientnetb0",
+  "archivo": "cacao_efficientnetb0.keras",
+  "criterio": "accuracy",
+  "accuracy": 0.8172,
+  "f1_macro": 0.8121,
+  "latency_ms": 256.61,
+  "comparado_con": [
+    "mobilenetv2"
+  ]
+}

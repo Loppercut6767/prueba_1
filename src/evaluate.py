@@ -55,15 +55,23 @@ def _plot_confusion(cm, class_names):
 
 
 def main():
-    if not config.MODEL_PATH.exists():
+    import argparse
+    parser = argparse.ArgumentParser(description="Evalúa un modelo sobre el test")
+    parser.add_argument("--backbone", choices=config.AVAILABLE_BACKBONES, default=None,
+                        help="Modelo a evaluar (por defecto: el ganador de la comparación)")
+    args = parser.parse_args()
+
+    model_path = config.resolve_model_path(args.backbone)
+    if not model_path.exists():
         raise FileNotFoundError(
-            f"No existe el modelo {config.MODEL_PATH}. Entrena primero con "
-            "'python -m src.train'."
+            f"No existe el modelo {model_path}. Entrena primero con "
+            "'python -m src.train' o compara con 'python -m src.compare'."
         )
 
     from sklearn.metrics import classification_report, confusion_matrix
 
-    model = tf.keras.models.load_model(config.MODEL_PATH)
+    print(f"Evaluando modelo: {model_path.name}")
+    model = tf.keras.models.load_model(model_path)
     _, _, test_ds, class_names = data_mod.load_datasets()
     saved_names = _load_class_names()
     if saved_names:

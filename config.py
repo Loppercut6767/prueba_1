@@ -15,11 +15,55 @@ DATA_DIR = ROOT_DIR / "data" / "raw" / "Cocoa Beans"   # dataset etiquetado
 MODELS_DIR = ROOT_DIR / "models"
 OUTPUTS_DIR = ROOT_DIR / "outputs"
 
-MODEL_PATH = MODELS_DIR / "cacao_mobilenetv2.keras"
 CLASS_NAMES_PATH = MODELS_DIR / "class_names.json"
+# Puntero al modelo elegido para producción/cámara (lo escribe src/compare.py)
+BEST_MODEL_PATH = MODELS_DIR / "best_model.json"
 
 for _d in (MODELS_DIR, OUTPUTS_DIR):
     _d.mkdir(parents=True, exist_ok=True)
+
+# --------------------------------------------------------------------------- #
+# Modelos disponibles para comparar
+#
+# El proyecto entrena y compara dos arquitecturas de transfer learning. La
+# cámara usa la que gane la comparación (ver src/compare.py).
+# --------------------------------------------------------------------------- #
+AVAILABLE_BACKBONES = ["mobilenetv2", "efficientnetb0"]
+DEFAULT_BACKBONE = "mobilenetv2"
+
+
+def model_path(backbone: str):
+    """Ruta del modelo entrenado para un backbone dado."""
+    return MODELS_DIR / f"cacao_{backbone}.keras"
+
+
+# Compatibilidad: MODEL_PATH sigue apuntando al backbone por defecto
+MODEL_PATH = model_path(DEFAULT_BACKBONE)
+
+
+def resolve_model_path(backbone: str | None = None):
+    """Ruta del modelo a usar en inferencia (predicción / cámara).
+
+    Prioridad:
+      1) el backbone pedido explícitamente,
+      2) el ganador de la comparación (models/best_model.json),
+      3) el backbone por defecto.
+    """
+    import json
+
+    if backbone:
+        return model_path(backbone)
+    if BEST_MODEL_PATH.exists():
+        try:
+            info = json.loads(BEST_MODEL_PATH.read_text())
+            # Se reconstruye desde el 'backbone' (portable entre máquinas), no
+            # desde una ruta absoluta guardada.
+            p = model_path(info["backbone"])
+            if p.exists():
+                return p
+        except (ValueError, KeyError):
+            pass
+    return MODEL_PATH
 
 # --------------------------------------------------------------------------- #
 # Parámetros de imagen / entrenamiento
@@ -40,7 +84,11 @@ LR_HEAD = 1e-3
 FINE_TUNE = True
 EPOCHS_FINE_TUNE = 15
 LR_FINE_TUNE = 1e-5
-FINE_TUNE_AT = 100      # descongela desde esta capa de MobileNetV2 en adelante
+# Capa a partir de la cual se descongela cada backbone durante el fine-tuning
+FINE_TUNE_AT = {
+    "mobilenetv2": 100,
+    "efficientnetb0": 150,
+}
 
 # --------------------------------------------------------------------------- #
 # Mapeo carpeta_del_dataset -> etiqueta de morfología (español)
