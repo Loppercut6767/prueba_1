@@ -116,3 +116,34 @@ de impacto esperado:
 
 > Realista: con más datos de las clases duras, 87 %+ es alcanzable. Solo con
 > trucos de arquitectura sobre estas 614 imágenes, lo esperable es ~82–85 %.
+
+## 6. Experimento: resolución 224 + EfficientNetB2 + ensamble
+
+Se subió `IMG_SIZE` a **224** y se registró **EfficientNetB2** (backbone mayor).
+Comparación de los 3 modelos a 224 px con TTA (test de 93 imágenes):
+
+| Modelo         | Accuracy | F1 macro | FPS (CPU) | Tamaño |
+|----------------|:--------:|:--------:|:---------:|:------:|
+| MobileNetV2    |  74.2 %  |  0.744   |   ~6.2    | 9.7 MB |
+| EfficientNetB0 |  76.3 %  |  0.774   |   ~3.3    | 47.6 MB |
+| **EfficientNetB2** | **90.3 %** | **0.902** | ~2.3 | 92.4 MB |
+
+**EfficientNetB2 dio un salto grande: 90.3 % en test** (precisión macro 0.92),
+con `fermentado` F1 0.63 → **0.79** y `pizarroso` → **0.86**. La resolución 224 +
+mayor capacidad sí capturan la diferencia de color que antes se perdía.
+
+**El ensamble NO ayudó.** Promediar B0 (76 %) + B2 (90 %) da ~82 %: el modelo
+flojo arrastra al fuerte. Con estos datos, **B2 en solitario es la mejor opción**
+y es el que queda desplegado en la cámara (`models/best_model.json`).
+
+**Coste de B2:** ~2.3 FPS y 92 MB en CPU. Para clasificar granos colocados uno a
+uno (modo `--roi`) es suficiente; para vídeo muy fluido, MobileNetV2 (~6 FPS) es
+la alternativa rápida a costa de exactitud.
+
+### Confirmación con validación cruzada (EfficientNetB2)
+
+<!-- KFOLD_B2_DOC -->
+
+> El 90.3 % es de un único test; el k-fold da el número robusto (arriba). Aun con
+> el margen de la muestra pequeña, B2 se sitúa claramente por **encima del 87 %**
+> objetivo.

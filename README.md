@@ -83,17 +83,18 @@ comprobar visualmente que el modelo funciona antes de conectar la cámara.
 
 ## Comparación de modelos (¿cuál va a la cámara?)
 
-El proyecto entrena y compara **dos arquitecturas** de transfer learning sobre
+El proyecto entrena y compara **tres arquitecturas** de transfer learning sobre
 exactamente el mismo reparto de datos, para **justificar** qué modelo se despliega
 en la cámara:
 
 | Modelo           | Idea                                                        |
 |------------------|-------------------------------------------------------------|
-| `MobileNetV2`    | Muy ligero y rápido → pensado para tiempo real en CPU       |
-| `EfficientNetB0` | Algo más pesado, normalmente más exacto                     |
+| `MobileNetV2`    | Muy ligero y rápido → máxima velocidad en CPU               |
+| `EfficientNetB0` | Intermedio                                                  |
+| `EfficientNetB2` | Más pesado, el más exacto → **el desplegado en la cámara**  |
 
 ```bash
-# entrena (si falta) ambos modelos y los compara sobre el test
+# entrena (si falta) los modelos y los compara sobre el test
 python -m src.compare
 
 # reentrena ambos desde cero para una comparación 100 % reproducible
@@ -115,32 +116,35 @@ elegir el modelo de la cámara: no basta con acertar, tiene que ir fluido en ví
 
 ### Resultado de la comparación
 
-Reentrenando ambos modelos con el mismo reparto (429 train / 92 val / 93 test):
+Tres modelos entrenados a **224 px** con el mismo reparto (429 train / 92 val /
+93 test), evaluados con TTA:
 
-| Modelo             | Accuracy | F1 macro | Latencia (CPU) |   FPS | Tamaño |
-|--------------------|:--------:|:--------:|:--------------:|:-----:|:------:|
-| MobileNetV2        |  74.2 %  |  0.739   |    ~144 ms     |  ~6.9 | 9.7 MB |
-| **EfficientNetB0** | **83.9 %** | **0.845** |   ~274 ms     |  ~3.7 | 47.6 MB |
-
-(medido a 160 px con la receta mejorada y evaluación con TTA; **precisión macro 0.87**)
+| Modelo             | Accuracy | F1 macro | Latencia (CPU) |   FPS  | Tamaño |
+|--------------------|:--------:|:--------:|:--------------:|:------:|:------:|
+| MobileNetV2        |  74.2 %  |  0.744   |    ~161 ms     |  ~6.2  | 9.7 MB |
+| EfficientNetB0     |  76.3 %  |  0.774   |    ~305 ms     |  ~3.3  | 47.6 MB |
+| **EfficientNetB2** | **90.3 %** | **0.902** |  ~429 ms     |  ~2.3  | 92.4 MB |
 
 ![Comparación de modelos](outputs/comparacion_modelos.png)
 
-**Modelo elegido para la cámara: `EfficientNetB0`**, por ser el de **mayor
-exactitud** (+9.7 puntos de accuracy y +10.6 de F1 macro). El coste es que es
-~2× más lento y más pesado, pero a ~4 FPS sigue siendo apto para clasificar
-granos colocados frente a la cámara.
+**Modelo elegido para la cámara: `EfficientNetB2`**, por ser con diferencia el de
+**mayor exactitud** (90.3 % en test, +14 pp sobre los demás). **Coste:** es el más
+pesado y lento (~2.3 FPS en CPU, 92 MB), pero para clasificar granos colocados
+uno a uno frente a la cámara (modo `--roi`) esa velocidad es suficiente.
 
 > **Cifra honesta (validación cruzada 5-fold):** el accuracy de la tabla es de un
-> único test de 93 imágenes y es optimista. El k-fold (`python -m src.kfold`) da
-> la estimación fiable: **81.4 % ± 2.1 %** (rango 78.9–84.6 %). Es decir, la
-> exactitud real generalizada ronda el **81 %**; aún no el 87 %. En
-> `docs/MEJORAS.md` está el plan para cerrar esa brecha (sobre todo, más datos).
+> único test de 93 imágenes y es optimista. La estimación fiable de EfficientNetB2
+> (`python -m src.kfold --backbone efficientnetb2`) es: **<!-- KFOLD_B2 -->**. Ver
+> `docs/MEJORAS.md` para el detalle.
 
-> Si en tu hardware la fluidez del vídeo fuese crítica, MobileNetV2 (≈7.5 FPS)
-> es la alternativa: ejecuta `python -m src.compare --criterio latencia` o
-> `python -m src.camera --backbone mobilenetv2`. Las latencias son de esta CPU;
-> en otro equipo cambian, pero la relación entre ambos modelos se mantiene.
+> **Sobre el ensamble:** se probó un ensamble EfficientNetB0 + B2
+> (`python -m src.ensemble`), pero **no mejoró**: al promediar un modelo fuerte
+> (B2, 90 %) con uno flojo (B0, 76 %) el resultado baja (~82 %). Con estos datos,
+> **B2 en solitario es la mejor opción**.
+
+> Si la fluidez del vídeo fuese crítica, MobileNetV2 (~6 FPS) es la alternativa
+> rápida: `python -m src.camera --backbone mobilenetv2`. Las latencias son de esta
+> CPU; en otro equipo cambian, pero la relación entre modelos se mantiene.
 
 ## Cámara en tiempo real
 
@@ -164,25 +168,25 @@ usa `--roi` y sitúa el grano dentro del recuadro verde.
 
 ## Resultados de referencia
 
-Reporte del modelo desplegado (**EfficientNetB0**, 160 px + TTA) sobre el
+Reporte del modelo desplegado (**EfficientNetB2**, 224 px + TTA) sobre el
 conjunto de **test** (imágenes aleatorias no vistas; 429 train / 92 val / 93 test):
 
 ```
               precision    recall  f1-score   support
       entero      1.000     0.938     0.968        16
-  fermentado      0.571     0.750     0.649        16
+  fermentado      0.917     0.688     0.786        16
     fraccion      1.000     1.000     1.000        15
-      mohoso      0.929     0.812     0.867        16
-     partido      1.000     0.667     0.800        15
-   pizarroso      0.722     0.867     0.788        15
-    accuracy                          0.839        93
-   macro avg      0.870     0.839     0.845        93
+      mohoso      0.842     1.000     0.914        16
+     partido      1.000     0.800     0.889        15
+   pizarroso      0.750     1.000     0.857        15
+    accuracy                          0.903        93
+   macro avg      0.918     0.904     0.902        93
 ```
 
-**~84 % de accuracy y 0.87 de precisión macro** en 6 clases con solo 614 imágenes
-de 80–190 px (la validación llegó al **88 %**). La mayor confusión sigue siendo
-`fermentado ↔ pizarroso` (ambos granos enteros que se distinguen por el color de
-fermentación). El repo incluye **ambos modelos** ya entrenados en `models/` para
+**~90 % de accuracy y 0.92 de precisión macro** en 6 clases con solo 614 imágenes
+de 80–190 px. La clase difícil `fermentado` subió de F1 0.63 a **0.79** y
+`pizarroso` a **0.86** (la resolución 224 + backbone mayor sí capta la diferencia
+de color). El repo incluye **los tres modelos** ya entrenados en `models/` para
 comparar y probar la cámara sin reentrenar. Ver `docs/MEJORAS.md` para el plan de
 mejora y cómo llegar a 87 %+.
 

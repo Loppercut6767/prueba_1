@@ -1,0 +1,11 @@
+{
+  "tipo": "ensamble",
+  "miembros": [
+    "efficientnetb0",
+    "efficientnetb2"
+  ],
+  "img_size": 224,
+  "accuracy": 0.8172,
+  "f1_macro": 0.8224,
+  "tta": true
+}
