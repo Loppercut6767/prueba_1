@@ -132,10 +132,12 @@ Tres modelos entrenados a **224 px** con el mismo reparto (429 train / 92 val /
 pesado y lento (~2.3 FPS en CPU, 92 MB), pero para clasificar granos colocados
 uno a uno frente a la cámara (modo `--roi`) esa velocidad es suficiente.
 
-> **Cifra honesta (validación cruzada 5-fold):** el accuracy de la tabla es de un
-> único test de 93 imágenes y es optimista. La estimación fiable de EfficientNetB2
-> (`python -m src.kfold --backbone efficientnetb2`) es: **<!-- KFOLD_B2 -->**. Ver
-> `docs/MEJORAS.md` para el detalle.
+> **Cifra honesta (validación cruzada 5-fold):** el 90.3 % de la tabla es de un
+> único test de 93 imágenes y resultó **optimista**. El k-fold de EfficientNetB2
+> (`python -m src.kfold --backbone efficientnetb2`) da la estimación fiable:
+> **83.1 % ± 2.3 %** (rango 78.9–85.4 %). Es la mejor de las probadas (B0 quedó en
+> 81.4 %), pero **aún no llega al 87 % robusto**: para eso falta, sobre todo, más
+> datos. Detalle y plan en `docs/MEJORAS.md`.
 
 > **Sobre el ensamble:** se probó un ensamble EfficientNetB0 + B2
 > (`python -m src.ensemble`), pero **no mejoró**: al promediar un modelo fuerte
@@ -183,12 +185,12 @@ conjunto de **test** (imágenes aleatorias no vistas; 429 train / 92 val / 93 te
    macro avg      0.918     0.904     0.902        93
 ```
 
-**~90 % de accuracy y 0.92 de precisión macro** en 6 clases con solo 614 imágenes
-de 80–190 px. La clase difícil `fermentado` subió de F1 0.63 a **0.79** y
-`pizarroso` a **0.86** (la resolución 224 + backbone mayor sí capta la diferencia
-de color). El repo incluye **los tres modelos** ya entrenados en `models/` para
-comparar y probar la cámara sin reentrenar. Ver `docs/MEJORAS.md` para el plan de
-mejora y cómo llegar a 87 %+.
+En este test único da **~90 % de accuracy**, pero es optimista: la cifra fiable
+(validación cruzada 5-fold) es **83.1 % ± 2.3 %**. Aun así, la clase difícil
+`fermentado` subió de F1 0.63 a **0.79** y `pizarroso` a **0.86** (la resolución
+224 + backbone mayor sí capta mejor la diferencia de color). El repo incluye **los
+tres modelos** ya entrenados en `models/` para comparar y probar la cámara sin
+reentrenar. Ver `docs/MEJORAS.md` para el plan de mejora y cómo llegar a 87 %+.
 
 > Los números pueden variar ligeramente entre ejecuciones. Con `--random`, el
 > script de predicción muestrea imágenes de **todo** el dataset (train incluido),

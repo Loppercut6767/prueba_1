@@ -142,8 +142,30 @@ la alternativa rápida a costa de exactitud.
 
 ### Confirmación con validación cruzada (EfficientNetB2)
 
-<!-- KFOLD_B2_DOC -->
+El k-fold 5× con TTA (`python -m src.kfold --backbone efficientnetb2`) da la
+estimación fiable:
 
-> El 90.3 % es de un único test; el k-fold da el número robusto (arriba). Aun con
-> el margen de la muestra pequeña, B2 se sitúa claramente por **encima del 87 %**
-> objetivo.
+```
+  fold 1: acc=84.6%   fold 2: acc=78.9%   fold 3: acc=82.9%
+  fold 4: acc=85.4%   fold 5: acc=83.6%
+  Accuracy media: 83.1 %  (± 2.3)   |   F1 macro: 82.6 %  (± 3.1)
+  Rango: 78.9 % – 85.4 %
+```
+
+**Conclusión honesta:** el **90.3 % del test único era optimista** (split
+afortunado). La exactitud REAL de EfficientNetB2 es **~83 % (±2.3)**, con el mejor
+fold en 85.4 %. Es una mejora clara sobre EfficientNetB0 (~81.4 % cross-validado a
+160 px), pero **todavía no se alcanza el 87 % de forma robusta**: faltan ~4 puntos.
+
+### Estado final y qué falta para 87 %
+
+| Configuración                    | Accuracy cross-validada |
+|----------------------------------|:-----------------------:|
+| EfficientNetB0 @160 (receta v2)  |     81.4 % ± 2.1        |
+| **EfficientNetB2 @224** (desplegado) |  **83.1 % ± 2.3**   |
+
+Se agotaron las palancas de arquitectura sobre estas 614 imágenes. El salto a
+87 %+ robusto ya **depende de datos**, no de trucos: recolectar/etiquetar más
+granos de las clases confusas (`fermentado`, `pizarroso`, `partido`),
+idealmente fotografiados con la propia cámara del despliegue. Es la conclusión
+consistente en cada experimento.
