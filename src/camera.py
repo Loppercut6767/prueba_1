@@ -52,6 +52,17 @@ def preprocess_frame(frame_bgr, roi_box=None):
         x, y, w, h = roi_box
         frame_bgr = frame_bgr[y:y + h, x:x + w]
     rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+    if getattr(config, "PAD_RESIZE", False):
+        # Redimensionado con padding (mismo criterio que en entrenamiento):
+        # escala manteniendo proporción y rellena con negro hasta IMG_SIZE.
+        h0, w0 = rgb.shape[:2]
+        scale = config.IMG_SIZE / max(h0, w0)
+        nh, nw = int(round(h0 * scale)), int(round(w0 * scale))
+        resized = cv2.resize(rgb, (nw, nh))
+        canvas = np.zeros((config.IMG_SIZE, config.IMG_SIZE, 3), dtype="float32")
+        top, left = (config.IMG_SIZE - nh) // 2, (config.IMG_SIZE - nw) // 2
+        canvas[top:top + nh, left:left + nw] = resized
+        return np.expand_dims(canvas, 0)  # reescalado va en el modelo
     resized = cv2.resize(rgb, (config.IMG_SIZE, config.IMG_SIZE))
     return np.expand_dims(resized.astype("float32"), 0)  # reescalado va en el modelo
 

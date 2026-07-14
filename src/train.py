@@ -27,20 +27,20 @@ from src import data as data_mod  # noqa: E402
 from src import model as model_mod  # noqa: E402
 
 
-def _callbacks(model_path, best_threshold: float | None = None):
+def _callbacks(model_path, best_threshold: float | None = None, use_lr_reduce=True):
     """Callbacks de entrenamiento.
 
     `best_threshold` fija el umbral inicial del ModelCheckpoint. En la fase 2
     (fine-tuning) se pasa el mejor val_accuracy de la fase 1, de modo que el
     checkpoint SOLO sobrescriba el modelo guardado si el fine-tuning realmente
     lo mejora. Así nunca se pierde el mejor modelo de la fase anterior.
+
+    `use_lr_reduce`: ReduceLROnPlateau es incompatible con un LR programado
+    (cosine decay), así que en la fase 2 se desactiva.
     """
-    return [
+    cbs = [
         tf.keras.callbacks.EarlyStopping(
             monitor="val_accuracy", patience=8, restore_best_weights=True, verbose=1
-        ),
-        tf.keras.callbacks.ReduceLROnPlateau(
-            monitor="val_loss", factor=0.5, patience=4, min_lr=1e-7, verbose=1
         ),
         tf.keras.callbacks.ModelCheckpoint(
             str(model_path), monitor="val_accuracy",
@@ -48,6 +48,11 @@ def _callbacks(model_path, best_threshold: float | None = None):
             initial_value_threshold=best_threshold,
         ),
     ]
+    if use_lr_reduce:
+        cbs.insert(1, tf.keras.callbacks.ReduceLROnPlateau(
+            monitor="val_loss", factor=0.5, patience=4, min_lr=1e-7, verbose=1
+        ))
+    return cbs
 
 
 def _plot_history(histories, backbone):
@@ -79,20 +84,23 @@ def _plot_history(histories, backbone):
 
 def train_backbone(backbone, train_ds, val_ds, class_names,
                    epochs=config.EPOCHS_HEAD, ft_epochs=config.EPOCHS_FINE_TUNE,
-                   do_fine_tune=True):
+                   do_fine_tune=True, out_path=None, plot=True):
     """Entrena un backbone concreto y devuelve la ruta del mejor modelo guardado.
 
     Reutilizable por src.compare para entrenar los dos modelos con el mismo
     reparto de datos (comparación justa).
     """
     num_classes = len(class_names)
-    model_path = config.model_path(backbone)
+    model_path = out_path if out_path is not None else config.model_path(backbone)
     class_weights = data_mod.compute_class_weights(train_ds, num_classes)
+
+    ls = getattr(config, "LABEL_SMOOTHING", 0.0)
+    loss = tf.keras.losses.CategoricalCrossentropy(label_smoothing=ls)
 
     model = model_mod.build_model(num_classes, backbone=backbone)
     model.compile(
         optimizer=tf.keras.optimizers.Adam(config.LR_HEAD),
-        loss="categorical_crossentropy",
+        loss=loss,
         metrics=["accuracy"],
     )
 
@@ -109,19 +117,28 @@ def train_backbone(backbone, train_ds, val_ds, class_names,
     if config.FINE_TUNE and do_fine_tune:
         print(f"\n=== [{backbone}] FASE 2: fine-tuning ===")
         model_mod.enable_fine_tuning(model, backbone=backbone)
+        # Cosine decay: baja el LR suavemente durante el fine-tuning para afinar
+        # sin desestabilizar los pesos preentrenados.
+        steps = int(train_ds.cardinality().numpy())
+        lr_sched = tf.keras.optimizers.schedules.CosineDecay(
+            initial_learning_rate=config.LR_FINE_TUNE,
+            decay_steps=max(1, steps * ft_epochs),
+        )
         model.compile(
-            optimizer=tf.keras.optimizers.Adam(config.LR_FINE_TUNE),
-            loss="categorical_crossentropy",
+            optimizer=tf.keras.optimizers.Adam(lr_sched),
+            loss=loss,
             metrics=["accuracy"],
         )
         h2 = model.fit(
             train_ds, validation_data=val_ds,
             epochs=ft_epochs, class_weight=class_weights,
-            callbacks=_callbacks(model_path, best_threshold=best_val), verbose=2,
+            callbacks=_callbacks(model_path, best_threshold=best_val,
+                                 use_lr_reduce=False), verbose=2,
         )
         histories.append(h2)
 
-    _plot_history(histories, backbone)
+    if plot:
+        _plot_history(histories, backbone)
     print(f"[{backbone}] mejor modelo guardado en {model_path}")
     return model_path
 

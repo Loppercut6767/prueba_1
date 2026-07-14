@@ -52,7 +52,16 @@ def _measure_latency(model, sample, n_runs=100, warmup=10):
     return ms_per_img, 1000.0 / ms_per_img  # ms, fps
 
 
-def evaluate_model(model, test_ds, class_names):
+def _predict_tta(model, x):
+    """Promedia la predicción sobre la imagen y sus volteos (TTA)."""
+    views = [x,
+             tf.image.flip_left_right(x),
+             tf.image.flip_up_down(x)]
+    probs = [model.predict(v, verbose=0) for v in views]
+    return np.mean(probs, axis=0)
+
+
+def evaluate_model(model, test_ds, class_names, tta=False):
     from sklearn.metrics import (accuracy_score, classification_report,
                                  f1_score)
 
@@ -60,7 +69,7 @@ def evaluate_model(model, test_ds, class_names):
     for x, y in test_ds:
         if one_sample is None:
             one_sample = x[0].numpy()
-        probs = model.predict(x, verbose=0)
+        probs = _predict_tta(model, x) if tta else model.predict(x, verbose=0)
         y_pred.extend(np.argmax(probs, axis=1))
         y_true.extend(np.argmax(y.numpy(), axis=1))
 
@@ -149,6 +158,8 @@ def main():
     parser.add_argument("--criterio", choices=["accuracy", "latencia"],
                         default="accuracy",
                         help="Criterio para elegir el modelo de la cámara")
+    parser.add_argument("--tta", action="store_true",
+                        help="Evaluar con Test-Time Augmentation (promedia volteos)")
     args = parser.parse_args()
 
     tf.keras.utils.set_random_seed(config.SEED)
@@ -163,8 +174,8 @@ def main():
         path = _get_model(backbone, train_ds, val_ds, class_names,
                           args.retrain, args.epochs, args.ft_epochs)
         model = tf.keras.models.load_model(path)
-        print(f"\n=== Evaluando {backbone} en el test ===")
-        res = evaluate_model(model, test_ds, class_names)
+        print(f"\n=== Evaluando {backbone} en el test {'(TTA)' if args.tta else ''} ===")
+        res = evaluate_model(model, test_ds, class_names, tta=args.tta)
         res["size_mb"], res["params"] = _model_stats(model, path)
         res["path"] = str(path)
         results[backbone] = res

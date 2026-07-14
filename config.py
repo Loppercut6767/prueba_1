@@ -68,9 +68,22 @@ def resolve_model_path(backbone: str | None = None):
 # --------------------------------------------------------------------------- #
 # Parámetros de imagen / entrenamiento
 # --------------------------------------------------------------------------- #
-IMG_SIZE = 128          # MobileNetV2 acepta 96/128/160/224; 128 es buen balance
+IMG_SIZE = 160          # subido de 128 -> 160: más detalle para color/forma finos
 BATCH_SIZE = 32
 SEED = 42
+
+# Redimensionado preservando la proporción (padding) en vez de estirar a cuadrado.
+# Evita deformar el grano, lo que ayuda a las clases basadas en forma
+# (partido / fraccion / entero).
+PAD_RESIZE = True
+
+# Aumento de datos: se separa el geométrico (fuerte) del de color (SUAVE), porque
+# el color es justo lo que distingue 'fermentado' de 'pizarroso'. Aumentar mucho
+# el brillo/contraste borra esa señal y confunde ambas clases.
+AUG_COLOR_STRENGTH = 0.06   # antes ~0.15; más bajo = conserva mejor el color
+
+# Suavizado de etiquetas: regulariza y mejora la calibración/generalización
+LABEL_SMOOTHING = 0.1
 
 # Reparto del dataset (estratificado por clase)
 VAL_SPLIT = 0.15
@@ -82,12 +95,13 @@ LR_HEAD = 1e-3
 
 # Fase 2 (opcional): fine-tuning de las últimas capas del backbone
 FINE_TUNE = True
-EPOCHS_FINE_TUNE = 15
-LR_FINE_TUNE = 1e-5
-# Capa a partir de la cual se descongela cada backbone durante el fine-tuning
+EPOCHS_FINE_TUNE = 20    # más épocas: el fine-tuning con cosine decay necesita margen
+LR_FINE_TUNE = 3e-5      # algo mayor que 1e-5 para que el fine-tuning mueva la aguja
+# Capa a partir de la cual se descongela cada backbone durante el fine-tuning.
+# Se descongela MÁS red que antes (número menor) para adaptar mejor al dominio cacao.
 FINE_TUNE_AT = {
-    "mobilenetv2": 100,
-    "efficientnetb0": 150,
+    "mobilenetv2": 80,
+    "efficientnetb0": 100,
 }
 
 # --------------------------------------------------------------------------- #

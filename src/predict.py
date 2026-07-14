@@ -44,9 +44,11 @@ def load_model_and_classes(backbone: str | None = None):
 
 
 def preprocess(path: str) -> np.ndarray:
+    from src.data import resize_image  # mismo redimensionado que en entrenamiento
+
     img = tf.io.read_file(path)
     img = tf.image.decode_image(img, channels=3, expand_animations=False)
-    img = tf.image.resize(img, (config.IMG_SIZE, config.IMG_SIZE))
+    img = resize_image(img)
     img = tf.cast(img, tf.float32)  # el reescalado ocurre dentro del modelo
     return tf.expand_dims(img, 0)
 

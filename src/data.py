@@ -50,10 +50,20 @@ def _list_files_and_labels():
     return filepaths, labels, class_names
 
 
+def resize_image(img):
+    """Redimensiona a IMG_SIZE. Con PAD_RESIZE conserva la proporción (padding)
+    en vez de estirar a cuadrado, para no deformar el grano."""
+    if getattr(config, "PAD_RESIZE", False):
+        img = tf.image.resize_with_pad(img, config.IMG_SIZE, config.IMG_SIZE)
+    else:
+        img = tf.image.resize(img, (config.IMG_SIZE, config.IMG_SIZE))
+    return img
+
+
 def _decode(path, label):
     img = tf.io.read_file(path)
     img = tf.image.decode_jpeg(img, channels=3)
-    img = tf.image.resize(img, (config.IMG_SIZE, config.IMG_SIZE))
+    img = resize_image(img)
     img = tf.cast(img, tf.float32)  # 0-255; el reescalado va dentro del modelo
     return img, label
 

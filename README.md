@@ -119,16 +119,18 @@ Reentrenando ambos modelos con el mismo reparto (429 train / 92 val / 93 test):
 
 | Modelo             | Accuracy | F1 macro | Latencia (CPU) |   FPS | Tamaño |
 |--------------------|:--------:|:--------:|:--------------:|:-----:|:------:|
-| MobileNetV2        |  75.3 %  |  0.755   |    ~133 ms     |  ~7.5 | 9.7 MB |
-| **EfficientNetB0** | **81.7 %** | **0.812** |   ~257 ms     |  ~3.9 | 43.3 MB |
+| MobileNetV2        |  74.2 %  |  0.739   |    ~144 ms     |  ~6.9 | 9.7 MB |
+| **EfficientNetB0** | **83.9 %** | **0.845** |   ~274 ms     |  ~3.7 | 47.6 MB |
+
+(medido a 160 px con la receta mejorada y evaluación con TTA; **precisión macro 0.87**)
 
 ![Comparación de modelos](outputs/comparacion_modelos.png)
 
 **Modelo elegido para la cámara: `EfficientNetB0`**, por ser el de **mayor
-exactitud** (+6.4 puntos de accuracy y +5.7 de F1 macro). Mejora sobre todo en
-`mohoso` (0.75 → 0.94 F1) y `entero` (perfecto). El coste es que es ~2× más
-lento y más pesado, pero a ~4 FPS sigue siendo apto para clasificar granos
-colocados frente a la cámara.
+exactitud** (+9.7 puntos de accuracy y +10.6 de F1 macro). El coste es que es
+~2× más lento y más pesado, pero a ~4 FPS sigue siendo apto para clasificar
+granos colocados frente a la cámara. En `docs/MEJORAS.md` se explica cómo se
+subió la precisión y cómo llegar a 87 %+.
 
 > Si en tu hardware la fluidez del vídeo fuese crítica, MobileNetV2 (≈7.5 FPS)
 > es la alternativa: ejecuta `python -m src.compare --criterio latencia` o
@@ -157,26 +159,27 @@ usa `--roi` y sitúa el grano dentro del recuadro verde.
 
 ## Resultados de referencia
 
-Reporte del modelo desplegado (**EfficientNetB0**) sobre el conjunto de **test**
-(imágenes aleatorias no vistas; 429 train / 92 val / 93 test):
+Reporte del modelo desplegado (**EfficientNetB0**, 160 px + TTA) sobre el
+conjunto de **test** (imágenes aleatorias no vistas; 429 train / 92 val / 93 test):
 
 ```
               precision    recall  f1-score   support
-      entero      1.000     1.000     1.000        16
-  fermentado      0.579     0.688     0.629        16
-    fraccion      0.933     0.933     0.933        15
-      mohoso      0.938     0.938     0.938        16
-     partido      0.875     0.467     0.609        15
-   pizarroso      0.684     0.867     0.765        15
-    accuracy                          0.817        93
+      entero      1.000     0.938     0.968        16
+  fermentado      0.571     0.750     0.649        16
+    fraccion      1.000     1.000     1.000        15
+      mohoso      0.929     0.812     0.867        16
+     partido      1.000     0.667     0.800        15
+   pizarroso      0.722     0.867     0.788        15
+    accuracy                          0.839        93
+   macro avg      0.870     0.839     0.845        93
 ```
 
-**~82 % de accuracy** en 6 clases con solo 614 imágenes de 80–190 px. La mayor
-confusión sigue siendo `fermentado ↔ pizarroso` (ambos granos enteros que se
-distinguen por el color de fermentación) y algo de `partido → fraccion` — algo
-esperable y mejorable con más datos y mayor resolución. El repo incluye **ambos
-modelos** ya entrenados en `models/` para poder comparar y probar la cámara sin
-reentrenar.
+**~84 % de accuracy y 0.87 de precisión macro** en 6 clases con solo 614 imágenes
+de 80–190 px (la validación llegó al **88 %**). La mayor confusión sigue siendo
+`fermentado ↔ pizarroso` (ambos granos enteros que se distinguen por el color de
+fermentación). El repo incluye **ambos modelos** ya entrenados en `models/` para
+comparar y probar la cámara sin reentrenar. Ver `docs/MEJORAS.md` para el plan de
+mejora y cómo llegar a 87 %+.
 
 > Los números pueden variar ligeramente entre ejecuciones. Con `--random`, el
 > script de predicción muestrea imágenes de **todo** el dataset (train incluido),

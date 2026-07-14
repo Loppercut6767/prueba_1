@@ -27,13 +27,16 @@ import config  # noqa: E402
 
 
 def _augmentation_block():
+    # Geométrico FUERTE (la morfología es invariante a giros/zoom) + color SUAVE
+    # (el color distingue fermentado de pizarroso; no conviene borrarlo).
+    c = getattr(config, "AUG_COLOR_STRENGTH", 0.06)
     return tf.keras.Sequential(
         [
             layers.RandomFlip("horizontal_and_vertical"),
             layers.RandomRotation(0.2),
             layers.RandomZoom(0.15),
-            layers.RandomContrast(0.15),
-            layers.RandomBrightness(0.1, value_range=(0, 255)),
+            layers.RandomContrast(c),
+            layers.RandomBrightness(c, value_range=(0, 255)),
         ],
         name="aumento_datos",
     )
