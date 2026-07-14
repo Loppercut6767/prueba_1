@@ -29,7 +29,7 @@ for _d in (MODELS_DIR, OUTPUTS_DIR):
 # cámara usa la que gane la comparación (ver src/compare.py).
 # --------------------------------------------------------------------------- #
 # Modelos candidatos para la CÁMARA (los que compara src/compare.py)
-AVAILABLE_BACKBONES = ["mobilenetv2", "efficientnetb0"]
+AVAILABLE_BACKBONES = ["mobilenetv2", "efficientnetb0", "efficientnetb2"]
 # Todos los backbones ENTRENABLES (incluye el mayor usado en el ensamble)
 ALL_BACKBONES = ["mobilenetv2", "efficientnetb0", "efficientnetb2"]
 # Miembros del ensamble (se promedian sus probabilidades en src/ensemble.py)
