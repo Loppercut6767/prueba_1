@@ -57,7 +57,7 @@ def _plot_confusion(cm, class_names):
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Evalúa un modelo sobre el test")
-    parser.add_argument("--backbone", choices=config.AVAILABLE_BACKBONES, default=None,
+    parser.add_argument("--backbone", choices=config.ALL_BACKBONES, default=None,
                         help="Modelo a evaluar (por defecto: el ganador de la comparación)")
     args = parser.parse_args()
 

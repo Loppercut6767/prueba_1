@@ -46,7 +46,7 @@ def _eval(model, ds, tta):
 def main():
     parser = argparse.ArgumentParser(description="Validación cruzada k-fold")
     parser.add_argument("--folds", type=int, default=5)
-    parser.add_argument("--backbone", choices=config.AVAILABLE_BACKBONES,
+    parser.add_argument("--backbone", choices=config.ALL_BACKBONES,
                         default="efficientnetb0")
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--ft-epochs", type=int, default=12)

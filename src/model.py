@@ -59,8 +59,16 @@ def _build_backbone(backbone: str, input_shape):
         )
         return base, None
 
+    if backbone == "efficientnetb2":
+        # Backbone mayor (más capacidad) para el ensamble. También normaliza
+        # internamente el rango 0-255.
+        base = tf.keras.applications.EfficientNetB2(
+            input_shape=input_shape, include_top=False, weights="imagenet"
+        )
+        return base, None
+
     raise ValueError(
-        f"Backbone desconocido: {backbone}. Opciones: {config.AVAILABLE_BACKBONES}"
+        f"Backbone desconocido: {backbone}. Opciones: {config.ALL_BACKBONES}"
     )
 
 

@@ -77,7 +77,7 @@ def main():
                         help="Analizar solo un recuadro central de la imagen")
     parser.add_argument("--conf", type=float, default=0.0,
                         help="Umbral mínimo de confianza para mostrar etiqueta")
-    parser.add_argument("--backbone", choices=config.AVAILABLE_BACKBONES, default=None,
+    parser.add_argument("--backbone", choices=config.ALL_BACKBONES, default=None,
                         help="Forzar un modelo (por defecto: el ganador de la comparación)")
     args = parser.parse_args()
 

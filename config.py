@@ -28,7 +28,12 @@ for _d in (MODELS_DIR, OUTPUTS_DIR):
 # El proyecto entrena y compara dos arquitecturas de transfer learning. La
 # cámara usa la que gane la comparación (ver src/compare.py).
 # --------------------------------------------------------------------------- #
+# Modelos candidatos para la CÁMARA (los que compara src/compare.py)
 AVAILABLE_BACKBONES = ["mobilenetv2", "efficientnetb0"]
+# Todos los backbones ENTRENABLES (incluye el mayor usado en el ensamble)
+ALL_BACKBONES = ["mobilenetv2", "efficientnetb0", "efficientnetb2"]
+# Miembros del ensamble (se promedian sus probabilidades en src/ensemble.py)
+ENSEMBLE_MEMBERS = ["efficientnetb0", "efficientnetb2"]
 DEFAULT_BACKBONE = "mobilenetv2"
 
 
@@ -68,7 +73,7 @@ def resolve_model_path(backbone: str | None = None):
 # --------------------------------------------------------------------------- #
 # Parámetros de imagen / entrenamiento
 # --------------------------------------------------------------------------- #
-IMG_SIZE = 160          # subido de 128 -> 160: más detalle para color/forma finos
+IMG_SIZE = 224          # 224: resolución nativa de EfficientNet, más detalle fino
 BATCH_SIZE = 32
 SEED = 42
 
@@ -102,6 +107,7 @@ LR_FINE_TUNE = 3e-5      # algo mayor que 1e-5 para que el fine-tuning mueva la 
 FINE_TUNE_AT = {
     "mobilenetv2": 80,
     "efficientnetb0": 100,
+    "efficientnetb2": 120,
 }
 
 # --------------------------------------------------------------------------- #

@@ -114,7 +114,7 @@ def main():
     group.add_argument("--image", type=str, help="Ruta a una imagen")
     group.add_argument("--dir", type=str, help="Carpeta con imágenes")
     group.add_argument("--random", type=int, help="N imágenes aleatorias del dataset")
-    parser.add_argument("--backbone", choices=config.AVAILABLE_BACKBONES, default=None,
+    parser.add_argument("--backbone", choices=config.ALL_BACKBONES, default=None,
                         help="Forzar un modelo concreto (por defecto: el ganador de la comparación)")
     args = parser.parse_args()
 

@@ -145,7 +145,7 @@ def train_backbone(backbone, train_ds, val_ds, class_names,
 
 def main():
     parser = argparse.ArgumentParser(description="Entrena el clasificador de cacao")
-    parser.add_argument("--backbone", choices=config.AVAILABLE_BACKBONES,
+    parser.add_argument("--backbone", choices=config.ALL_BACKBONES,
                         default=config.DEFAULT_BACKBONE)
     parser.add_argument("--epochs", type=int, default=config.EPOCHS_HEAD)
     parser.add_argument("--ft-epochs", type=int, default=config.EPOCHS_FINE_TUNE)
