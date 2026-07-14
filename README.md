@@ -129,8 +129,13 @@ Reentrenando ambos modelos con el mismo reparto (429 train / 92 val / 93 test):
 **Modelo elegido para la cámara: `EfficientNetB0`**, por ser el de **mayor
 exactitud** (+9.7 puntos de accuracy y +10.6 de F1 macro). El coste es que es
 ~2× más lento y más pesado, pero a ~4 FPS sigue siendo apto para clasificar
-granos colocados frente a la cámara. En `docs/MEJORAS.md` se explica cómo se
-subió la precisión y cómo llegar a 87 %+.
+granos colocados frente a la cámara.
+
+> **Cifra honesta (validación cruzada 5-fold):** el accuracy de la tabla es de un
+> único test de 93 imágenes y es optimista. El k-fold (`python -m src.kfold`) da
+> la estimación fiable: **81.4 % ± 2.1 %** (rango 78.9–84.6 %). Es decir, la
+> exactitud real generalizada ronda el **81 %**; aún no el 87 %. En
+> `docs/MEJORAS.md` está el plan para cerrar esa brecha (sobre todo, más datos).
 
 > Si en tu hardware la fluidez del vídeo fuese crítica, MobileNetV2 (≈7.5 FPS)
 > es la alternativa: ejecuta `python -m src.compare --criterio latencia` o
@@ -230,6 +235,7 @@ El número de clases se detecta automáticamente; no hay que tocar el resto.
 .
 ├── config.py               # rutas, hiperparámetros y mapeo de clases (ES)
 ├── requirements.txt
+├── docs/MEJORAS.md         # plan para subir la precisión (objetivo 87%+)
 ├── data/raw/Cocoa Beans/   # dataset etiquetado (6 clases)
 ├── models/                 # modelos entrenados + class_names.json + best_model.json
 ├── outputs/                # gráficas, matriz de confusión, comparación
@@ -238,6 +244,7 @@ El número de clases se detecta automáticamente; no hay que tocar el resto.
     ├── model.py            # backbones intercambiables (MobileNetV2 / EfficientNetB0)
     ├── train.py            # entrenamiento en 2 fases (--backbone)
     ├── compare.py          # compara los 2 modelos y elige el de la cámara
+    ├── kfold.py            # validación cruzada (estimación fiable de accuracy)
     ├── evaluate.py         # reporte + matriz de confusión sobre el test
     ├── predict.py          # inferencia en imágenes / lote / aleatorias
     └── camera.py           # clasificación en tiempo real con cámara

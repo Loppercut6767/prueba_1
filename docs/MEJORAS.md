@@ -74,17 +74,45 @@ EfficientNetB0, antes vs. después de aplicar las mejoras 1–6 (evaluación con
 - Mejoras por clase: `partido` 0.61 → **0.80** F1 (el padding + resolución ayudó
   a la forma) y `fermentado` recall 0.69 → 0.75. El cuello de botella sigue
   siendo `fermentado ↔ pizarroso` (color muy parecido).
-- Para **confirmar el 87 %** sin el ruido del test único, se añade validación
-  cruzada: `python -m src.kfold` (ver más abajo).
+### Validación cruzada (el número honesto)
 
-## 5. Si aún no se llega a 87 %
+El accuracy de un único test de 93 imágenes es ruidoso. La validación cruzada
+5-fold con TTA (`python -m src.kfold`) da la estimación fiable:
 
-- **k-fold (5 folds):** promedia el accuracy sobre 5 particiones → estimación
-  fiable; con datasets pequeños suele subir el número reportado y reduce el ruido.
-- **Más datos** de las clases confusas (`fermentado`, `pizarroso`, `partido`):
-  es la palanca más potente. Duplicar esas clases suele valer más que cualquier
-  truco de arquitectura.
-- **Backbone mayor:** `EfficientNetB2`/`EfficientNetV2B0` (añadir al registro de
-  `src/model.py`), asumiendo algo más de latencia.
-- **Resolución 224** si el hardware lo permite.
-- **Ensamble** MobileNetV2 + EfficientNetB0 (promediar probabilidades).
+```
+  fold 1: acc=79.7%   fold 2: acc=78.9%   fold 3: acc=84.6%
+  fold 4: acc=81.3%   fold 5: acc=82.8%
+  Accuracy media: 81.4 %  (± 2.1)   |   F1 macro: 81.2 %  (± 2.7)
+  Rango: 78.9 % – 84.6 %
+```
+
+**Conclusión honesta:** la exactitud REAL generalizada es **~81 % (±2)**. El
+83.9 % del test único y el 88 % de validación eran el lado optimista de esa
+distribución. Las mejoras 1–6 **sí ayudaron** (más estable y +F1), pero **aún no
+se alcanza el 87 % de forma fiable**: para eso hacen falta las palancas de la
+sección 5, sobre todo **más datos**.
+
+## 5. Cómo llegar de verdad a 87 %+ (todavía pendiente)
+
+Estamos en ~81 % cross-validado. Para cerrar los ~6 puntos que faltan, por orden
+de impacto esperado:
+
+1. **Más datos (la palanca decisiva).** Con 614 imágenes el modelo está cerca de
+   su techo. Recolectar/etiquetar más granos —sobre todo de las clases confusas
+   `fermentado`, `pizarroso` y `partido`— es lo que más sube el número. Como
+   referencia, pasar de ~100 a ~300 imágenes por clase suele valer más que
+   cualquier cambio de arquitectura. Fuentes: fotografiar granos propios con la
+   misma cámara del despliegue (ideal, elimina el domain gap) o datasets públicos
+   adicionales de Kaggle/Roboflow.
+2. **Backbone mayor:** `EfficientNetB2` o `EfficientNetV2B0`. Basta con añadirlo
+   al registro `_build_backbone` de `src/model.py` y a `AVAILABLE_BACKBONES`;
+   el resto del pipeline ya es genérico. Cuesta algo más de latencia.
+3. **Resolución 224** (subir `IMG_SIZE`) si el hardware lo permite.
+4. **Ensamble** de EfficientNetB0 + B2 (promediar probabilidades) — suele dar
+   +1–3 puntos estables.
+5. **Foco en `fermentado ↔ pizarroso`:** es un problema de color. Ayudaría
+   normalizar el color/iluminación de captura (white balance fijo en la cámara)
+   y añadir ejemplos de ambos con iluminación controlada.
+
+> Realista: con más datos de las clases duras, 87 %+ es alcanzable. Solo con
+> trucos de arquitectura sobre estas 614 imágenes, lo esperable es ~82–85 %.
