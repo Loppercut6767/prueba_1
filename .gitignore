@@ -6,14 +6,28 @@ __pycache__/
 venv/
 env/
 
-# Salidas generadas (se regeneran con evaluate.py / predict.py)
-outputs/*.png
-outputs/*.txt
+# --- modelo_actual (Keras) ---
+# Salidas generadas (se regeneran con evaluate.py / compare.py / predict.py)
+modelo_actual/outputs/*.png
+modelo_actual/outputs/*.txt
+# Nota: se versionan los modelos entrenados (models/*.keras) para poder usar la
+# cámara sin reentrenar.
 
-# Nota: se versiona un modelo entrenado de ejemplo (models/cacao_mobilenetv2.keras)
-# para que la cámara funcione sin reentrenar. Reentrénalo con `python -m src.train`.
+# --- modelo_yolo (Ultralytics) ---
+# (los comentarios van en su propia línea; en .gitignore no valen inline)
+# dataset/ se regenera con prepare_data.py (copias del data/)
+modelo_yolo/dataset/
+# runs/ son salidas de entrenamiento de Ultralytics
+modelo_yolo/runs/
+# pesos base descargados
+modelo_yolo/yolo11n-cls.pt
+modelo_yolo/*_log.txt
+# El peso entrenado final SÍ se versiona: modelo_yolo/cacao_yolo11n.pt
 
 # SO / editores
 .DS_Store
 .idea/
 .vscode/
+
+# plots generados de YOLO
+modelo_yolo/*.png

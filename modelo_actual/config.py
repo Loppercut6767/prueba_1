@@ -11,7 +11,9 @@ from pathlib import Path
 # Rutas del proyecto
 # --------------------------------------------------------------------------- #
 ROOT_DIR = Path(__file__).resolve().parent
-DATA_DIR = ROOT_DIR / "data" / "raw" / "Cocoa Beans"   # dataset etiquetado
+# El dataset vive en la raíz del repo (data/), compartido con modelo_yolo/
+REPO_ROOT = ROOT_DIR.parent
+DATA_DIR = REPO_ROOT / "data" / "raw" / "Cocoa Beans"   # dataset etiquetado
 MODELS_DIR = ROOT_DIR / "models"
 OUTPUTS_DIR = ROOT_DIR / "outputs"
 
