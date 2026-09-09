@@ -4,6 +4,11 @@ Proyecto para determinar la **morfología / calidad de un grano de cacao** a par
 de una imagen (clases: `entero`, `partido`, `fraccion`, `mohoso`, `fermentado`,
 `pizarroso`), con vistas a clasificar en tiempo real desde una cámara.
 
+> **Recomendación para Raspberry Pi 5 (8 GB): `YOLO11n-cls` (semilla 3).** Es el
+> más preciso (media 87.3 %, hasta 93.5 %), ~30–70× más rápido y ~8–30× más
+> liviano (3.2 MB) que los modelos Keras. Detalle y tabla completa en
+> [`COMPARACION_PI5.md`](COMPARACION_PI5.md).
+
 Se comparan **dos enfoques**, cada uno en su carpeta, usando el **mismo dataset**:
 
 | Carpeta         | Enfoque                                   | Modelo(s) |

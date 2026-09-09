@@ -1,12 +1,9 @@
 {
   "backbone": "efficientnetb2",
   "archivo": "cacao_efficientnetb2.keras",
-  "criterio": "accuracy",
-  "accuracy": 0.9032,
-  "f1_macro": 0.9023,
-  "latency_ms": 429.34,
-  "comparado_con": [
-    "mobilenetv2",
-    "efficientnetb0"
-  ]
+  "criterio": "recomendado_para_pi5",
+  "seed": 2,
+  "test_acc": 0.8387,
+  "latency_ms": 331.92,
+  "img_size": 160
 }

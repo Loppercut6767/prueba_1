@@ -31,3 +31,6 @@ modelo_yolo/*_log.txt
 
 # plots generados de YOLO
 modelo_yolo/*.png
+
+# peso base de YOLO descargado (en cualquier cwd)
+yolo11n-cls.pt
