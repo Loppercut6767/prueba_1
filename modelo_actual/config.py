@@ -75,7 +75,7 @@ def resolve_model_path(backbone: str | None = None):
 # --------------------------------------------------------------------------- #
 # Parámetros de imagen / entrenamiento
 # --------------------------------------------------------------------------- #
-IMG_SIZE = 224          # 224: resolución nativa de EfficientNet, más detalle fino
+IMG_SIZE = 160          # 160: equilibrio precisión/velocidad, apto para Raspberry Pi 5
 BATCH_SIZE = 32
 SEED = 42
 
